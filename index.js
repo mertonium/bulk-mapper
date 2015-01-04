@@ -52,7 +52,7 @@ function ImageRecord(filename) {
     };
   };
 
-  this.asGeoJson = function() {
+  this.asDocument = function() {
     return {
       _id: this._id,
       geometry: {
@@ -89,7 +89,7 @@ var processFile = function(filename, cb) {
     },
     function(cb) {
       // call to couchdb
-      console.log(record.asGeoJson());
+      console.log(record.asDocument());
     }
   ], cb);
 };
