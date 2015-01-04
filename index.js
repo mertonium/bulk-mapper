@@ -1,19 +1,27 @@
+// Modules
 var fs = require('graceful-fs'),
     gm = require('gm'),
     _  = require('underscore'),
     async = require('async'),
-    sha1 = require('sha1'),
-    imageMagick = gm.subClass({ imageMagick: true }),
-    ExifImage  = require('exif').ExifImage,
-    originalsPath = "/Users/mertonium/Pictures/zamar",
+    sha1 = require('sha1');
+
+// Sub modules
+var imageMagick = gm.subClass({ imageMagick: true }),
+    ExifImage  = require('exif').ExifImage;
+
+// Globals
+var originalsPath = "/Users/mertonium/Pictures/zamar",
     exportsPath = "/Users/mertonium/Pictures/zamar/exports",
-    s3Path = "https://s3.amazonaws.com/mertonium_public/zamar",
-    originalsArr = fs.readdirSync(originalsPath),
-    originals = _.select(originalsArr, function(x) {
-      return x.search(/\.jpg$/i) > -1;
-    }),
+    s3Path = "https://s3.amazonaws.com/mertonium_public/zamar";
     records = [];
 
+// Randos
+var originalsArr = fs.readdirSync(originalsPath),
+    originals = _.select(originalsArr, function(x) {
+      return x.search(/\.jpg$/i) > -1;
+    });
+
+// Class for the [poorly named] image records.
 function ImageRecord(filename) {
   this.filename = filename;
   this._id = sha1(this.filename);
