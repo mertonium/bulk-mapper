@@ -2,6 +2,7 @@ var fs = require('graceful-fs'),
     gm = require('gm'),
     _  = require('underscore'),
     async = require('async'),
+    sha1 = require('sha1'),
     imageMagick = gm.subClass({ imageMagick: true }),
     ExifImage  = require('exif').ExifImage,
     originalsPath = "/Users/mertonium/Pictures/zamar",
@@ -15,6 +16,7 @@ var fs = require('graceful-fs'),
 
 function ImageRecord(filename) {
   this.filename = filename;
+  this._id = sha1(this.filename);
 
   this.originalUri = originalsPath + '/' + this.filename;
   this.exportUri = exportsPath + '/' + this.filename;
@@ -52,6 +54,7 @@ function ImageRecord(filename) {
 
   this.asGeoJson = function() {
     return {
+      _id: this._id,
       geometry: {
         type: "Point",
         coordinates: [this.longitude, this.latitude]
