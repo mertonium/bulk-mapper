@@ -3,7 +3,8 @@ var fs = require('graceful-fs'),
     gm = require('gm'),
     _  = require('underscore'),
     async = require('async'),
-    sha1 = require('sha1');
+    sha1 = require('sha1'),
+    cradle = require('cradle');
 
 // Sub modules
 var imageMagick = gm.subClass({ imageMagick: true }),
@@ -14,6 +15,14 @@ var originalsPath = "/Users/mertonium/Pictures/zamar",
     exportsPath = "/Users/mertonium/Pictures/zamar/exports",
     s3Path = "https://s3.amazonaws.com/mertonium_public/zamar";
     records = [];
+
+// Database
+var db = new(cradle.Connection)('http://admin:admin@127.0.0.1', 5984, {
+           cache: true,
+           raw: false,
+           forceSave: true
+         }).database('zamar');
+
 
 // Randos
 var originalsArr = fs.readdirSync(originalsPath),
@@ -62,7 +71,8 @@ function ImageRecord(filename) {
 
   this.asDocument = function() {
     return {
-      _id: this._id,
+      id: this._id,
+      type: "Feature",
       geometry: {
         type: "Point",
         coordinates: [this.longitude, this.latitude]
@@ -98,6 +108,7 @@ var processFile = function(filename, cb) {
     function(cb) {
       // call to couchdb
       console.log(record.asDocument());
+      db.save(record._id, record.asDocument(), cb);
     }
   ], cb);
 };
