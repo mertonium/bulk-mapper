@@ -84,6 +84,26 @@ function ImageRecord(filename) {
       }
     };
   };
+
+  this.asPublicArtFinder = function() {
+    return {
+      id: this._id,
+      title: '',
+      artist: 'zamar',
+      description: '',
+      discipline: '',
+      location_description: '',
+      full_address: '',
+      geometry: {
+        type: "Point",
+        coordinates: [this.longitude, this.latitude]
+      },
+      image_urls: [this.s3Url],
+      data_source: 'mertonium',
+      doc_type: 'artwork',
+      created_at : this.created_at
+    };
+  };
 }
 
 var processFile = function(filename, cb) {
@@ -102,13 +122,13 @@ var processFile = function(filename, cb) {
       console.log("exporting " + record.originalUri+ " to " + record.exportUri);
 
       // Create new image...
-      //imageMagick(record.originalUri).resize(800, 800).noProfile().write(record.exportUri, cb);
+      imageMagick(record.originalUri).resize(800, 800).noProfile().write(record.exportUri, cb);
       cb();
     },
     function(cb) {
       // call to couchdb
       console.log(record.asDocument());
-      db.save(record._id, record.asDocument(), cb);
+      db.save(record._id, record.asPublicArtFinder(), cb);
     }
   ], cb);
 };
