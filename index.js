@@ -36,8 +36,8 @@ function ImageRecord(filename) {
   this._id = sha1(this.filename);
 
   this.originalUri = originalsPath + '/' + this.filename;
-  this.exportUri = exportsPath + '/' + this.filename;
-  this.s3Url = s3Path + '/' + this.filename.replace(' ', '+');
+  this.exportUri = exportsPath + '/' + this.filename.replace(' ', '_');
+  this.s3Url = s3Path + '/' + this.filename.replace(' ', '_');
 
   this.addExifData = function(exifData) {
     var lat = exifData.gps.GPSLatitude,
@@ -78,9 +78,10 @@ function ImageRecord(filename) {
         coordinates: [this.longitude, this.latitude]
       },
       properties : {
+        title: '',
         filename : this.filename,
         created_at : this.created_at,
-        s3Url : this.s3Url
+        photo_url : this.s3Url
       }
     };
   };
@@ -106,11 +107,8 @@ function ImageRecord(filename) {
   };
 }
 
-var processFile = function(filename, cb) {
+var processFile = function(filename, done) {
   var record = new ImageRecord(filename);
-  records.push(record);
-
-  console.log("processing " + record.originalUri);
 
   async.waterfall([
     function(cb) {
@@ -118,22 +116,26 @@ var processFile = function(filename, cb) {
     },
     function(data, cb) {
       record.addExifData(data);
-      //console.log(record.asObject());
-      console.log("exporting " + record.originalUri+ " to " + record.exportUri);
 
-      // Create new image...
-      imageMagick(record.originalUri).resize(800, 800).noProfile().write(record.exportUri, cb);
-      cb();
-    },
-    function(cb) {
-      // call to couchdb
-      console.log(record.asDocument());
-      db.save(record._id, record.asPublicArtFinder(), cb);
+      if(record.longitude != null && record.latitude != null) {
+        records.push(record);
+        // Create new image...
+        imageMagick(record.originalUri).resize(400, 400).noProfile().write(record.exportUri, cb);
+      } else {
+        cb();
+      }
     }
-  ], cb);
+  ], done);
 };
 
 async.eachLimit(originals, 5, processFile, function(err) {
   if(err) console.error(err.message);
-});
 
+  var featureCollection = _.map(records, function(r) { return r.asDocument(); });
+  var geojson = {
+    type: 'FeatureCollection',
+    features: featureCollection
+  };
+
+  console.log(JSON.stringify(geojson, null, 2));
+});
