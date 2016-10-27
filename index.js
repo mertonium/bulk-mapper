@@ -13,7 +13,7 @@ const exportsPath = '/Users/mertonium/Pictures/test/exports';
 const s3Path = 'https://s3.amazonaws.com/mertonium_public/zamar';
 const records = [];
 
-// Randos
+// Read in all the files in the given folder, fliter out the non-images
 const originalsArr = fs.readdirSync(originalsPath);
 const originals = _.filter(originalsArr, x => (x.search(/\.jpg$/i) > -1));
 
@@ -38,15 +38,15 @@ function processFile(filename, done) {
   ], done);
 }
 
+// Process the original images, 5 at a time, building the final geojson object
 async.eachLimit(originals, 5, processFile, (err) => {
   if (err) console.error(err.message);
 
-  const featureCollection = _.map(records, r => r.asGeoJson());
   const geojson = {
     type: 'FeatureCollection',
-    features: featureCollection,
+    features: _.map(records, r => r.asGeoJson()),
   };
 
   console.log(JSON.stringify(geojson, null, 2));
-  console.log(`Processed ${featureCollection.length} records`);
+  console.log(`Processed ${geojson.features.length} records`);
 });
