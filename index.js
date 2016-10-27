@@ -4,8 +4,6 @@ const gm = require('gm');
 const _ = require('lodash');
 const async = require('async');
 const ImageRecord = require('./lib/image_record');
-
-// Sub modules
 const imageMagick = gm.subClass({ imageMagick: true });
 const ExifImage = require('exif').ExifImage;
 
@@ -43,7 +41,7 @@ function processFile(filename, done) {
 async.eachLimit(originals, 5, processFile, (err) => {
   if (err) console.error(err.message);
 
-  const featureCollection = _.map(records, r => r.asDocument());
+  const featureCollection = _.map(records, r => r.asGeoJson());
   const geojson = {
     type: 'FeatureCollection',
     features: featureCollection,
