@@ -1,139 +1,68 @@
-// Modules
-var fs = require('graceful-fs'),
-    gm = require('gm'),
-    _  = require('underscore'),
-    async = require('async'),
-    sha1 = require('sha1'),
-    cradle = require('cradle');
+#!/usr/bin/env node
+const fs = require('graceful-fs');
+const gm = require('gm');
+const _ = require('lodash');
+const async = require('async');
+const ImageRecord = require('./lib/image_record');
+const ExifImage = require('exif').ExifImage;
+const program = require('commander');
 
-// Sub modules
-var imageMagick = gm.subClass({ imageMagick: true }),
-    ExifImage  = require('exif').ExifImage;
+const imageMagick = gm.subClass({ imageMagick: true });
 
-// Globals
-var originalsPath = "/Users/mertonium/Pictures/zamar",
-    exportsPath = "/Users/mertonium/Pictures/zamar/exports",
-    s3Path = "https://s3.amazonaws.com/mertonium_public/zamar";
-    records = [];
+program
+  .version('0.0.1')
+  .usage('[options] <source path> <destination path>')
+  .option('-p, --prefix [prefix]', 'Exported photo url prefix (i.e. https://s3.amazonaws.com/foo/bar)', '')
+  .option('-f, --force', 'Force exported files to overwrite files with same name')
+  .parse(process.argv);
 
-// Database
-var db = new(cradle.Connection)('http://admin:admin@127.0.0.1', 5984, {
-           cache: true,
-           raw: false,
-           forceSave: true
-         }).database('zamar');
-
-
-// Randos
-var originalsArr = fs.readdirSync(originalsPath),
-    originals = _.select(originalsArr, function(x) {
-      return x.search(/\.jpg$/i) > -1;
-    });
-
-// Class for the [poorly named] image records.
-function ImageRecord(filename) {
-  this.filename = filename;
-  this._id = sha1(this.filename);
-
-  this.originalUri = originalsPath + '/' + this.filename;
-  this.exportUri = exportsPath + '/' + this.filename;
-  this.s3Url = s3Path + '/' + this.filename.replace(' ', '+');
-
-  this.addExifData = function(exifData) {
-    var lat = exifData.gps.GPSLatitude,
-        lng = exifData.gps.GPSLongitude,
-        latRef = exifData.gps.GPSLatitudeRef,
-        lngRef = exifData.gps.GPSLongitudeRef;
-
-    this.created_at = exifData.exif.CreateDate;
-    this.latitude = this.convertToDecimal(lat, latRef);
-    this.longitude = this.convertToDecimal(lng, lngRef);
-  };
-
-  this.convertToDecimal = function(gpsArr, gpsRef) {
-    var decimalPiece, baseResult;
-
-    if(!gpsArr || gpsArr.length != 3) return;
-
-    decimalPiece = (gpsArr[1] * 60 + gpsArr[2]) / 3600;
-    baseResult = gpsArr[0] + decimalPiece;
-    return (gpsRef == 'S' || gpsRef == 'W') ? -1 * baseResult : baseResult;
-  };
-
-  this.asObject = function() {
-    return {
-      filename : this.filename,
-      created_at : this.created_at,
-      latitude : this.latitude,
-      longitude : this.longitude
-    };
-  };
-
-  this.asDocument = function() {
-    return {
-      id: this._id,
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [this.longitude, this.latitude]
-      },
-      properties : {
-        filename : this.filename,
-        created_at : this.created_at,
-        s3Url : this.s3Url
-      }
-    };
-  };
-
-  this.asPublicArtFinder = function() {
-    return {
-      id: this._id,
-      title: '',
-      artist: 'zamar',
-      description: '',
-      discipline: '',
-      location_description: '',
-      full_address: '',
-      geometry: {
-        type: "Point",
-        coordinates: [this.longitude, this.latitude]
-      },
-      image_urls: [this.s3Url],
-      data_source: 'mertonium',
-      doc_type: 'artwork',
-      created_at : this.created_at
-    };
-  };
+if (program.args.length !== 2) {
+  program.outputHelp();
+  process.exit();
 }
 
-var processFile = function(filename, cb) {
-  var record = new ImageRecord(filename);
-  records.push(record);
+const prefix = program.prefix;
+const originalsPath = program.args[0];
+const exportsPath = program.args[1];
+const records = [];
 
-  console.log("processing " + record.originalUri);
+// Read in all the files in the given folder, fliter out the non-images
+const originalsArr = fs.readdirSync(originalsPath);
+const originals = _.filter(originalsArr, x => (x.search(/\.jpg$/i) > -1));
+
+function processFile(filename, done) {
+  const record = new ImageRecord(filename, originalsPath, exportsPath, prefix);
 
   async.waterfall([
-    function(cb) {
+    (cb) => {
+      /* eslint no-new: "off" */
       new ExifImage({ image: record.originalUri }, cb);
     },
-    function(data, cb) {
+    (data, cb) => {
       record.addExifData(data);
-      //console.log(record.asObject());
-      console.log("exporting " + record.originalUri+ " to " + record.exportUri);
 
-      // Create new image...
-      imageMagick(record.originalUri).resize(800, 800).noProfile().write(record.exportUri, cb);
+      if (record.longitude != null && record.latitude != null) {
+        records.push(record);
+        if (program.force || !fs.existsSync(record.exportUri)) {
+          imageMagick(record.originalUri)
+            .resize(400, 400)
+            .noProfile()
+            .write(record.exportUri, cb);
+        }
+      }
       cb();
     },
-    function(cb) {
-      // call to couchdb
-      console.log(record.asDocument());
-      db.save(record._id, record.asPublicArtFinder(), cb);
-    }
-  ], cb);
-};
+  ], done);
+}
 
-async.eachLimit(originals, 5, processFile, function(err) {
-  if(err) console.error(err.message);
+// Process the original images, 5 at a time, building the final geojson object
+async.eachLimit(originals, 5, processFile, (err) => {
+  if (err) process.stderr.write(err.message);
+
+  const geojson = {
+    type: 'FeatureCollection',
+    features: _.map(records, r => r.asGeoJson()),
+  };
+
+  process.stdout.write(`${JSON.stringify(geojson, null, 2)}\n`);
 });
-

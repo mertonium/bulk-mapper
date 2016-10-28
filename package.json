@@ -1,0 +1,42 @@
+{
+  "name": "bulkmapper",
+  "version": "0.0.1",
+  "description": "Resize folder of images and put their GPS data into a geojson file",
+  "main": "index.js",
+  "bin": "./index.js",
+  "dependencies": {
+    "async": "^0.9.0",
+    "commander": "^2.9.0",
+    "eslint-plugin-import": "^1.16.0",
+    "exif": "^0.4.0",
+    "gm": "^1.17.0",
+    "graceful-fs": "^3.0.5",
+    "lodash": "^4.16.4",
+    "sha1": "^1.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.8.1",
+    "eslint-config-airbnb": "^12.0.0",
+    "eslint-plugin-import": "^2.0.1",
+    "eslint-plugin-jsx-a11y": "^2.2.3",
+    "eslint-plugin-react": "^6.4.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mertonium/bulk-mapper.git"
+  },
+  "keywords": [
+    "exif",
+    "geojson",
+    "images"
+  ],
+  "author": "John Mertens",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/mertonium/bulk-mapper/issues"
+  },
+  "homepage": "https://github.com/mertonium/bulk-mapper#readme"
+}
