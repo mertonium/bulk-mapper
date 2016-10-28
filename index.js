@@ -57,13 +57,12 @@ function processFile(filename, done) {
 
 // Process the original images, 5 at a time, building the final geojson object
 async.eachLimit(originals, 5, processFile, (err) => {
-  if (err) console.error(err.message);
+  if (err) process.stderr.write(err.message);
 
   const geojson = {
     type: 'FeatureCollection',
     features: _.map(records, r => r.asGeoJson()),
   };
 
-  console.log(JSON.stringify(geojson, null, 2));
-  console.log(`Processed ${geojson.features.length} records`);
+  process.stdout.write(`${JSON.stringify(geojson, null, 2)}\n`);
 });
