@@ -6,6 +6,8 @@
   "bin": "./index.js",
   "dependencies": {
     "async": "^0.9.0",
+    "commander": "^2.9.0",
+    "eslint-plugin-import": "^1.16.0",
     "exif": "^0.4.0",
     "gm": "^1.17.0",
     "graceful-fs": "^3.0.5",

@@ -4,13 +4,26 @@ const gm = require('gm');
 const _ = require('lodash');
 const async = require('async');
 const ImageRecord = require('./lib/image_record');
-const imageMagick = gm.subClass({ imageMagick: true });
 const ExifImage = require('exif').ExifImage;
+const program = require('commander');
 
-// Globals
-const originalsPath = '/Users/mertonium/Pictures/test';
-const exportsPath = '/Users/mertonium/Pictures/test/exports';
-const s3Path = 'https://s3.amazonaws.com/mertonium_public/zamar';
+const imageMagick = gm.subClass({ imageMagick: true });
+
+program
+  .version('0.0.1')
+  .usage('[options] <source path> <destination path>')
+  .option('-p, --prefix [prefix]', 'Exported photo url prefix (i.e. https://s3.amazonaws.com/foo/bar)', '')
+  .option('-f, --force', 'Force exported files to overwrite files with same name')
+  .parse(process.argv);
+
+if (program.args.length !== 2) {
+  program.outputHelp();
+  process.exit();
+}
+
+const prefix = program.prefix;
+const originalsPath = program.args[0];
+const exportsPath = program.args[1];
 const records = [];
 
 // Read in all the files in the given folder, fliter out the non-images
@@ -18,7 +31,7 @@ const originalsArr = fs.readdirSync(originalsPath);
 const originals = _.filter(originalsArr, x => (x.search(/\.jpg$/i) > -1));
 
 function processFile(filename, done) {
-  const record = new ImageRecord(filename, originalsPath, exportsPath, s3Path);
+  const record = new ImageRecord(filename, originalsPath, exportsPath, prefix);
 
   async.waterfall([
     (cb) => {
@@ -30,10 +43,14 @@ function processFile(filename, done) {
 
       if (record.longitude != null && record.latitude != null) {
         records.push(record);
-        imageMagick(record.originalUri).resize(400, 400).noProfile().write(record.exportUri, cb);
-      } else {
-        cb();
+        if (program.force || !fs.existsSync(record.exportUri)) {
+          imageMagick(record.originalUri)
+            .resize(400, 400)
+            .noProfile()
+            .write(record.exportUri, cb);
+        }
       }
+      cb();
     },
   ], done);
 }
